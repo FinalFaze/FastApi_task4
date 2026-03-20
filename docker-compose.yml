@@ -1,0 +1,15 @@
+services:
+  db:
+    image: postgres:16
+    container_name: blogicum_db
+    environment:
+      POSTGRES_DB: blogicum
+      POSTGRES_USER: blogicum
+      POSTGRES_PASSWORD: blogicum
+    ports:
+      - "5432:5432"
+    volumes:
+      - blogicum_pgdata:/var/lib/postgresql/data
+
+volumes:
+  blogicum_pgdata:
