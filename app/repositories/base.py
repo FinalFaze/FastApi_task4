@@ -1,4 +1,4 @@
-from typing import Generic, Type, TypeVar
+from typing import Callable, Generic, Type, TypeVar
 
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session
@@ -10,17 +10,25 @@ from app.errors import (
     InfrastructureNotFoundError,
 )
 
-T = TypeVar("T")
+TModel = TypeVar("TModel")
+TEntity = TypeVar("TEntity")
 
 
-class BaseRepository(Generic[T]):
-    def __init__(self, db: Session, model: Type[T]):
+class BaseRepository(Generic[TModel, TEntity]):
+    def __init__(
+        self,
+        db: Session,
+        model: Type[TModel],
+        mapper: Callable[[TModel], TEntity],
+    ):
         self.db = db
         self.model = model
+        self.mapper = mapper
 
-    def list(self) -> list[T]:
+    def list(self) -> list[TEntity]:
         try:
-            return self.db.query(self.model).order_by(self.model.id).all()
+            items = self.db.query(self.model).order_by(self.model.id).all()
+            return [self.mapper(item) for item in items]
         except SQLAlchemyError as exc:
             raise InfrastructureDatabaseError(
                 message=f"Failed to list {self.model.__name__}",
@@ -29,7 +37,7 @@ class BaseRepository(Generic[T]):
                 details={"db_error": str(exc)},
             ) from exc
 
-    def get(self, obj_id: int) -> T:
+    def get(self, obj_id: int) -> TEntity:
         try:
             obj = self.db.get(self.model, obj_id)
         except SQLAlchemyError as exc:
@@ -46,9 +54,9 @@ class BaseRepository(Generic[T]):
                 operation="get",
                 details={"id": obj_id},
             )
-        return obj
+        return self.mapper(obj)
 
-    def create(self, data: dict) -> T:
+    def create(self, data: dict) -> TEntity:
         obj = self.model(**data)
         self.db.add(obj)
         try:
@@ -65,12 +73,30 @@ class BaseRepository(Generic[T]):
                 operation="create",
                 details={"payload": sorted(data.keys()), "db_error": str(exc)},
             ) from exc
-        return obj
+        return self.mapper(obj)
 
-    def update(self, obj_id: int, data: dict) -> T:
-        obj = self.get(obj_id)
+    def update(self, obj_id: int, data: dict) -> TEntity:
+        try:
+            obj = self.db.get(self.model, obj_id)
+        except SQLAlchemyError as exc:
+            raise InfrastructureDatabaseError(
+                message=f"Failed to get {self.model.__name__}",
+                entity=self.model.__name__,
+                operation="update",
+                details={"id": obj_id, "db_error": str(exc)},
+            ) from exc
+
+        if not obj:
+            raise InfrastructureNotFoundError(
+                message=f"{self.model.__name__} not found",
+                entity=self.model.__name__,
+                operation="update",
+                details={"id": obj_id},
+            )
+
         for key, value in data.items():
             setattr(obj, key, value)
+
         try:
             self.db.commit()
             self.db.refresh(obj)
@@ -93,10 +119,27 @@ class BaseRepository(Generic[T]):
                     "db_error": str(exc),
                 },
             ) from exc
-        return obj
+        return self.mapper(obj)
 
     def delete(self, obj_id: int) -> None:
-        obj = self.get(obj_id)
+        try:
+            obj = self.db.get(self.model, obj_id)
+        except SQLAlchemyError as exc:
+            raise InfrastructureDatabaseError(
+                message=f"Failed to get {self.model.__name__}",
+                entity=self.model.__name__,
+                operation="delete",
+                details={"id": obj_id, "db_error": str(exc)},
+            ) from exc
+
+        if not obj:
+            raise InfrastructureNotFoundError(
+                message=f"{self.model.__name__} not found",
+                entity=self.model.__name__,
+                operation="delete",
+                details={"id": obj_id},
+            )
+
         self.db.delete(obj)
         try:
             self.db.commit()

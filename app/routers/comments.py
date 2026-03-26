@@ -2,11 +2,11 @@ from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
 
 from app.db.database import get_db
-from app.errors import DomainError
+from app.domain.errors import DomainError
+from app.domain.use_cases.blog import CommentUseCase
 from app.repositories.comment import CommentRepository
 from app.routers.utils import raise_http_error
 from app.schemas.blog import CommentCreate, CommentOut, CommentUpdate
-from app.use_cases.blog import CommentUseCase
 
 router = APIRouter(prefix="/comments", tags=["comments"])
 
@@ -41,9 +41,11 @@ def update_comment(
     payload: CommentUpdate,
     db: Session = Depends(get_db),
 ):
-    data = payload.model_dump(exclude_unset=True)
     try:
-        return CommentUseCase(CommentRepository(db)).update(comment_id, data)
+        return CommentUseCase(CommentRepository(db)).update(
+            comment_id,
+            payload.model_dump(exclude_unset=True),
+        )
     except DomainError as exc:
         raise_http_error(exc)
 

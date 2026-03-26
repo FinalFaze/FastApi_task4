@@ -1,6 +1,6 @@
 from fastapi import HTTPException
 
-from app.errors import DomainError
+from app.domain.errors import DomainError
 
 
 def raise_http_error(exc: DomainError) -> None:

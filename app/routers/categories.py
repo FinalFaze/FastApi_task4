@@ -2,11 +2,11 @@ from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
 
 from app.db.database import get_db
-from app.errors import DomainError
+from app.domain.errors import DomainError
+from app.domain.use_cases.blog import CategoryUseCase
 from app.repositories.category import CategoryRepository
 from app.routers.utils import raise_http_error
 from app.schemas.blog import CategoryCreate, CategoryOut, CategoryUpdate
-from app.use_cases.blog import CategoryUseCase
 
 router = APIRouter(prefix="/categories", tags=["categories"])
 
@@ -41,9 +41,11 @@ def update_category(
     payload: CategoryUpdate,
     db: Session = Depends(get_db),
 ):
-    data = payload.model_dump(exclude_unset=True)
     try:
-        return CategoryUseCase(CategoryRepository(db)).update(category_id, data)
+        return CategoryUseCase(CategoryRepository(db)).update(
+            category_id,
+            payload.model_dump(exclude_unset=True),
+        )
     except DomainError as exc:
         raise_http_error(exc)
 

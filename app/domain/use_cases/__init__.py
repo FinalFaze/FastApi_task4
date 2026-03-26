@@ -1,4 +1,4 @@
-from app.use_cases.blog import (
+from app.domain.use_cases.blog import (
     CategoryUseCase,
     CommentUseCase,
     LocationUseCase,

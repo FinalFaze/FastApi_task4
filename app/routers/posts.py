@@ -2,11 +2,11 @@ from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
 
 from app.db.database import get_db
-from app.errors import DomainError
+from app.domain.errors import DomainError
+from app.domain.use_cases.blog import PostUseCase
 from app.repositories.post import PostRepository
 from app.routers.utils import raise_http_error
 from app.schemas.blog import PostCreate, PostOut, PostUpdate
-from app.use_cases.blog import PostUseCase
 
 router = APIRouter(prefix="/posts", tags=["posts"])
 

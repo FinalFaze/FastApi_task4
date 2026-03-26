@@ -2,11 +2,11 @@ from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
 
 from app.db.database import get_db
-from app.errors import DomainError
+from app.domain.errors import DomainError
+from app.domain.use_cases.blog import LocationUseCase
 from app.repositories.location import LocationRepository
 from app.routers.utils import raise_http_error
 from app.schemas.blog import LocationCreate, LocationOut, LocationUpdate
-from app.use_cases.blog import LocationUseCase
 
 router = APIRouter(prefix="/locations", tags=["locations"])
 
@@ -41,9 +41,11 @@ def update_location(
     payload: LocationUpdate,
     db: Session = Depends(get_db),
 ):
-    data = payload.model_dump(exclude_unset=True)
     try:
-        return LocationUseCase(LocationRepository(db)).update(location_id, data)
+        return LocationUseCase(LocationRepository(db)).update(
+            location_id,
+            payload.model_dump(exclude_unset=True),
+        )
     except DomainError as exc:
         raise_http_error(exc)
 
